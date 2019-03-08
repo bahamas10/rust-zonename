@@ -8,7 +8,6 @@
 
 extern crate libc;
 
-use libc::{c_char, size_t};
 use std::ffi::CString;
 use std::io;
 
@@ -58,10 +57,12 @@ pub fn getzoneidbyname(zonename: &str) -> io::Result<i32> {
 /// let zonename = zonename::getzonenamebyid(zoneid).expect("failed to get zonename");
 /// ```
 pub fn getzonenamebyid(id: i32) -> io::Result<String> {
-    let mut buf: Vec<c_char> = Vec::with_capacity(ZONENAME_MAX);
-    let ptr = buf.as_mut_ptr() as *mut libc::c_char;
+    // since `CString::from_raw` is only supposed to be called after calling `into_raw` on a
+    // CString, we make a bogus buffer here that the ffi function will fill in for us
+    let c_string = CString::new(" ".repeat(ZONENAME_MAX)).unwrap();
+    let ptr = c_string.into_raw();
 
-    let len = unsafe { ffi::getzonenamebyid(id, ptr, buf.capacity() as size_t) };
+    let len = unsafe { ffi::getzonenamebyid(id, ptr, ZONENAME_MAX) };
     if len < 0 {
         return Err(io::Error::last_os_error());
     }
